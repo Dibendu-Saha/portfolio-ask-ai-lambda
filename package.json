@@ -1,0 +1,14 @@
+{
+  "name": "portfolio-ask-ai-lambda",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AWS Lambda function for portfolio RAG chatbot",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "openai": "^4.86.1"
+  }
+}
