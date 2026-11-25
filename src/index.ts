@@ -168,9 +168,9 @@ const initMcpClient = async () => {
       const CREDENTIAL_PATH = "/tmp/service-account.json";
 
       // write GCP credential json to AWS Lambda path --> read on next step from this path
-      // if (!fs.existsSync(CREDENTIAL_PATH) && process.env.GCP_SERVICE_ACCOUNT_JSON) {
-      //   fs.writeFileSync(CREDENTIAL_PATH, process.env.GCP_SERVICE_ACCOUNT_JSON, "utf8");
-      // }
+      if (!fs.existsSync(CREDENTIAL_PATH) && process.env.GCP_SERVICE_ACCOUNT_JSON) {
+        fs.writeFileSync(CREDENTIAL_PATH, process.env.GCP_SERVICE_ACCOUNT_JSON, "utf8");
+      }
 
       this.transport = new StdioClientTransport({
         command: "npx",
