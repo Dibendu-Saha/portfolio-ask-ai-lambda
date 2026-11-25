@@ -3,7 +3,6 @@ import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { Client, Tool } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
-import strict from "node:assert/strict";
 
 export const handler = async (event: any) => {
   const headers = {
@@ -13,7 +12,7 @@ export const handler = async (event: any) => {
 
   try {
     // init MCP client & get required tools from MCP server
-    const { tools, client } = await initMcpClient();
+    const { tools, mcpClient } = await initMcpClient();
 
     const { OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY } = process.env;
     if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
@@ -37,7 +36,9 @@ export const handler = async (event: any) => {
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 1. refine user query
+    /****************************************************
+     *************** 1. refine user query ***************
+     ****************************************************/
     const queryResponse = await openai.responses.create({
       model: "gpt-4o-mini",
       instructions: "ONLY refine the provided user query so that it is clear and understable.",
@@ -46,14 +47,18 @@ export const handler = async (event: any) => {
 
     const refinedUserQuery = queryResponse.output_text;
 
-    // 2. vector embedding
+    /****************************************************
+     *************** 2. vector embeddings ***************
+     ****************************************************/
     const embeddingResponse = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: refinedUserQuery,
     });
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
-    // 3. supabase similarity search
+    /****************************************************
+     ********** 3. supabase similarity search ***********
+     ****************************************************/
     const searchResponse = await supabase.rpc("match_documents", {
       query_embedding: queryEmbedding,
       match_threshold: 0.2,
@@ -68,7 +73,9 @@ export const handler = async (event: any) => {
     const searchResult = (searchResponse.data || []).map((match: any) => match.content);
     const context = `Context:\n${searchResult}`;
 
-    // 4. OpenAI Response API
+    /****************************************************
+     ************** 4. OpenAI Response API **************
+     ****************************************************/
     const response = await openai.responses.create({
       model: "gpt-4o-mini",
       instructions:
@@ -84,10 +91,45 @@ export const handler = async (event: any) => {
       tools
     });
 
+    let answer;
     console.log("\n--- OpenAI Raw Output ---");
     console.log(JSON.stringify(response.output || response, null, 2));
 
-    const answer = response.output_text || "No response received.";
+
+    let nextResponse;
+    if (response.output[0].type === "function_call") {
+      // 1. execute the tool call
+      const result = await mcpClient.callTool({
+        name: response.output[0].name,
+        arguments: JSON.parse(response.output[0].arguments)
+      })
+
+      if (result.isError) {
+        console.error("Error retrieving tool response.");
+      } else {
+        // 2. get response
+        console.log(result.content)
+
+        // 3. hand-off to OpenAI
+        nextResponse = await openai.responses.create({
+          model: "gpt-4o-mini",
+          previous_response_id: response.id,
+          input: [{
+            type: "function_call_output",
+            call_id: response.output[0].call_id,
+            output: JSON.stringify(result.content),
+          }],
+          store: true
+        });
+
+        answer = JSON.stringify(nextResponse!.output_text) || "No response received.";
+      }
+
+    } else {
+      answer = JSON.stringify(response!.output_text) || "No response received.";
+    }
+
+    await mcpClient.close();
 
     return {
       statusCode: 200,
@@ -119,6 +161,10 @@ const initMcpClient = async () => {
       );
     }
 
+    get getMcpClient() {
+      return this.mcpClient;
+    }
+
     async connectToMcpServer(serverScriptPath?: string) {
       const command = process.execPath;
       this.transport = new StdioClientTransport({
@@ -141,12 +187,6 @@ const initMcpClient = async () => {
         ["readGoogleDoc", "getGoogleDocContent"].includes(tool.name)
       );
 
-
-
-      // this.tools.forEach((t, i) => {
-      //   console.log(`\n - ${t.name}:  ${t.description}\n`);
-      // });
-
       return this.tools.map(tool => ({
         type: "function" as const,
         name: tool.name,
@@ -158,8 +198,9 @@ const initMcpClient = async () => {
   }
 
   const client = new MCPClient();
+  const mcpClient = client.getMcpClient;
   const tools = await client.connectToMcpServer();
-  return { tools, client };
+  return { tools, mcpClient };
 }
 
 handler({
