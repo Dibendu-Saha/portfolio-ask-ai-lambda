@@ -1,4 +1,5 @@
 import "dotenv/config";
+import fs from "node:fs";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { Client, Tool } from "@modelcontextprotocol/client";
@@ -163,15 +164,21 @@ const initMcpClient = async () => {
       return this.mcpClient;
     }
 
-    async connectToMcpServer(serverScriptPath?: string) {
+    async connectToMcpServer() {
+      const CREDENTIAL_PATH = "/tmp/service-account.json";
+
+      // write GCP credential json to AWS Lambda path --> read on next step from this path
+      // if (!fs.existsSync(CREDENTIAL_PATH) && process.env.GCP_SERVICE_ACCOUNT_JSON) {
+      //   fs.writeFileSync(CREDENTIAL_PATH, process.env.GCP_SERVICE_ACCOUNT_JSON, "utf8");
+      // }
+
       this.transport = new StdioClientTransport({
         command: "npx",
         args: ["-y", "@piotr-agier/google-drive-mcp"],
         env: {
           ...process.env,
           GOOGLE_APPLICATION_CREDENTIALS:
-            process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-            "/Users/Dibendu/Downloads/gcp-service-acct.keys.json",
+            process.env.GOOGLE_APPLICATION_CREDENTIALS || CREDENTIAL_PATH,
         }
       });
 
