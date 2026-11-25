@@ -206,16 +206,3 @@ const initMcpClient = async () => {
   const tools = await client.connectToMcpServer();
   return { tools, mcpClient };
 }
-
-handler({
-  body: JSON.stringify({
-    question: "Can you summarize Dibendu's latest experience from his CV Google Doc?",
-  }),
-})
-  .then((response: any) => {
-    console.log("\n================ LAMBDA RESPONSE ================");
-    console.log("Status Code:", response.statusCode);
-    console.log("Body:", JSON.parse(response.body));
-    console.log("=================================================");
-  })
-  .catch(console.error);
