@@ -149,12 +149,10 @@ export const handler = async (event: any) => {
 const initMcpClient = async () => {
   class MCPClient {
     private mcpClient: Client;
-    private openai: OpenAI;
     private transport: StdioClientTransport | null = null;
     private tools: Tool[] = [];
 
     constructor() {
-      this.openai = new OpenAI();
       this.mcpClient = new Client(
         { name: "portfolio-ask-ai-client", version: "1.0.0" },
         { versionNegotiation: { mode: "auto" } },
@@ -166,7 +164,6 @@ const initMcpClient = async () => {
     }
 
     async connectToMcpServer(serverScriptPath?: string) {
-      const command = process.execPath;
       this.transport = new StdioClientTransport({
         command: "npx",
         args: ["-y", "@piotr-agier/google-drive-mcp"],
