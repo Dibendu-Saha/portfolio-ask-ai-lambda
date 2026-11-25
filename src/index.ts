@@ -122,11 +122,11 @@ export const handler = async (event: any) => {
           store: true
         });
 
-        answer = JSON.stringify(nextResponse!.output_text) || "No response received.";
+        answer = nextResponse!.output_text || "No response received.";
       }
 
     } else {
-      answer = JSON.stringify(response!.output_text) || "No response received.";
+      answer = response!.output_text || "No response received.";
     }
 
     await mcpClient.close();
